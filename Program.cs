@@ -1,14 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace VierGewinnt
-{
-
-    internal class Program
+internal class Program
     {
         public static int win = 0;
         public static string Vorschaustein = "   @@@   \n @@@@@@@ \n @@@@@@@ \n   @@@   ";
@@ -60,7 +50,9 @@ namespace VierGewinnt
             Console.SetWindowPosition(0, 0);
             Console.Title = "Vier Gewinnt";
 
-            drawmenu();
+            Computer();
+
+            //drawmenu();
 
 
         }
@@ -666,8 +658,17 @@ namespace VierGewinnt
             Console.WriteLine("         ");
         }
 
-
-
+        public static void mxcopy()
+        {
+            int[,] mx = new int[6, 7];
+            for (int i = 0; i < matrix.GetLength(0); i++)
+            {
+                for (int j = 0; j < matrix.GetLength(1); j++)
+                {
+                    mx[i, j] = matrix[i, j];
+                }
+            }
+        }
         public static int check(int column) //Telci
         {
             if (matrix[0, column] != 0) //überprüft ob die Oberste Reihe belegt ist
@@ -676,21 +677,98 @@ namespace VierGewinnt
             }
             return 0;
         }
-
         //Minimax
-        public static int[,] mx = (int[,])matrix.Clone();
-
-        public static void Minimax() //o lord please kill me minimax function ausbauen evaluate(); ist nur zur scorebeurteilung
+        public static int c = 0;
+        public static int Minimax(int depth, int alpha, int beta, bool maximizingPlayer) //in game loop kriegen anscheinend
         {
-            int[,] mx = (int[,])matrix.Clone();
-            evaluate(true); //bot is true
-            steinrein(bestCol, -1);
+
+            if (depth == 0)
+            {
+                return evaluate(maximizingPlayer ? 1 : -1);
+            }
+            Console.WriteLine(bestCol);
+            mxcopy();
+            int eval = 0;
+            int score=0; // call the evaluation function to get the initial score
+            if (maximizingPlayer)
+            {
+                eval = evaluate(1);
+                int bestScore = int.MinValue / 2; // initialize bestScore to a very low value
+                for (int column = 0; column < 7; column++)
+                {
+                    for (int row = 5; row >= 0; row--)
+                    {
+                        if (mx[row, column] != 0)
+                        {
+                            continue;
+                        }
+                        mx[row, column] = 1; // make the move
+                        if (depth > 0)
+                        {
+                            score = Minimax(depth - 1, alpha, beta, !maximizingPlayer);
+                        }
+                         // recursively call Minimax with the next depth
+                        score = score + eval;
+                        mx[row, column] = 0; // undo the move
+                        if (score > bestScore)
+                        {
+                            bestScore = score;
+                            bestRow = row;
+                            bestCol = column;
+                        }
+                        alpha = Math.Max(alpha, score);
+                        if (beta <= alpha)
+                        {
+                            break; // beta pruning
+                        }
+                    }
+                }
+                return bestScore;
+            }
+            else
+            {
+                eval = evaluate(-1);
+                int bestScore = int.MaxValue / 2; // initialize bestScore to a very high value
+                for (int column = 0; column < 7; column++)
+                {
+                    for (int row = 5; row >= 0; row--)
+                    {
+                        if (mx[row, column] != 0)
+                        {
+                            continue;
+                        }
+                        mx[row, column] = -1; // make the move
+                        if (depth > 0)
+                        {
+                            score = Minimax(depth - 1, alpha, beta, !maximizingPlayer);
+                        }
+                        mx[row, column] = 0; // undo the move
+                        score = score + eval;
+                        if (score < bestScore)
+                        {
+                            bestScore = score;
+                            bestRow = row;
+                            bestCol = column;
+                        }
+                        bestScore = Math.Min(bestScore, score); // update the best score
+                        beta = Math.Min(beta, score);
+                        if (beta <= alpha)
+                        {
+                            break; // alpha pruning
+                        }
+                    }
+                }
+
+                return bestScore;
+            }
+
         }
 
         /*
          * Überprüfen ob die aktuelle position am besten ist, wenn ja Stein reinsetzen und neu evaluaten
          * für die Nächste depth
          */
+        public static int[,] mx = new int[6, 7];
         public static void mxreset()
         {
             for (int i = 0; i < matrix.GetLength(0); i++) //anzahl an zeilen
@@ -705,12 +783,25 @@ namespace VierGewinnt
         public static int bestRow = 0;
         public static int bestCol = 0;
 
-        public static int evaluate(bool maximizingPlayer) //Warrior blood must truly run in thy veins, tarnished
-        {                                                 //Bot gegenspiel ist false
 
-            int eval = evaluate(false);
-            int player = -1;
+        //diese funktion gibt nur Punkte für den aktuellen Status des Spieles, es ist NICHT der minimax algorithmus selbst
+        public static int evaluate(int player) //Warrior blood must truly run in thy veins, tarnished
+        {
+            //-1 is minimizing player 1 maximizing
+            //wenn bot gewonnen hat = -100
+            //wenn spieler gewonnen hat = 100
+            //wenn draw = 0
+
             int score = 0;
+            if (CheckWin(1)) // maximizing player has won
+            {
+                return score = 1000;
+            }
+            else if (CheckWin(-1)) // minimizing player has won
+            {
+                return score = -1000;
+            }
+
 
             // Zeilen überprüfen
             for (int row = 0; row < 6; row++) //für alles die Verbindungen überprüfen, wenn die Position mit einer anderen Verbunden ist geht der Score hoch
@@ -720,11 +811,11 @@ namespace VierGewinnt
                     int count = 0;
                     for (int i = 0; i < 4; i++)
                     {
-                        if (mx[row, col + i] == player)
+                        if (mx[row, col + i] == player) //Wenn die Position gut ist soll er den Score +1 machen
                         {
                             count++;
                         }
-                        else if (mx[row, col + i] != 0)
+                        else if (mx[row, col + i] != 0) //wenn nicht dann halt nicht, bzw eins abziehen
                         {
                             count--;
                         }
@@ -732,14 +823,13 @@ namespace VierGewinnt
                     score += count;
                 }
             }
-
             // Spalten überprüfen
-            for (int col = 0; col < 7; col++)
+            for (int col = 0; col < 7; col++) //col = 0
             {
-                for (int row = 0; row < 3; row++)
+                for (int row = 0; row < 3; row++) // row = 0
                 {
                     int count = 0;
-                    for (int i = 0; i < 4; i++)
+                    for (int i = 0; i < 4; i++) // i = 0
                     {
                         if (mx[row + i, col] == player)
                         {
@@ -753,7 +843,6 @@ namespace VierGewinnt
                     score += count;
                 }
             }
-
             // Diagonale Positionen überprüfe
             for (int row = 0; row < 3; row++)
             {
@@ -794,29 +883,44 @@ namespace VierGewinnt
                 }
             }
             // Find the best move
-            int maxScore = int.MinValue;
-
-            for (int row = 0; row < 6; row++)
-            {
-                for (int col = 0; col < 7; col++)
-                {
-                    if (mx[row,col] == 0)
-                    {
-                        mx[row,col] = player;
-                        int moveScore = evaluate(true);
-                        if (moveScore > maxScore)
-                        {
-                            maxScore = moveScore;
-                            bestRow = row;
-                            bestCol = col;
-                        }
-                    }
-                }
-            }
+            // Möglicher Code, den wir noch brauchen werden. Was dieser Code tut weiß ich schon wieder selber nicht
+            // ---------------------------------------------------------------------------------------------
+            //
+            //int maxScore = int.MinValue; //besten move finden
+            //for (int row = 0; row < 6; row++)
+            //{
+            //    for (int col = 0; col < 7; col++)
+            //    {
+            //        if (mx[row, col] == 0)
+            //        {
+            //            mx[row, col] = -1;
+            //            Console.Clear();
+            //            for (int i = 0; i < mx.GetLength(0); i++)
+            //            {
+            //                for (int j = 0; j < mx.GetLength(1); j++)
+            //                {
+            //                    Console.Write(mx[i, j] + " ");
+            //                }
+            //                Console.WriteLine();
+            //            }
+            //            Console.WriteLine(depth + " steinrein");
+            //            Console.ReadKey();
+            //            int moveScore = evaluate(true, depth-1);
+            //            if (moveScore > maxScore)
+            //            {
+            //                maxScore = moveScore;
+            //                bestRow = row;
+            //                bestCol = col;
+            //            }
+            //        }
+            //    }
+            //}
+            // ---------------------------------------------------------------------------------------------
+            if (player == -1) score = -score; //Wenn es der minimierende player war soll natürlich der kleinste score möglich sein
             return score; //jetzt die Row und Col einsetzen und es neu evaluaten lassen
         }
 
-
+        public static int counter = 0;
         public static void Computer() //Oliver
         {
             Console.Clear(); ConsoleKeyInfo schwierigkeitsgrad;
@@ -868,8 +972,11 @@ namespace VierGewinnt
                 rundenzähler++;
                 if (!gameover)
                 {
-                    Comp_einwurf(skg);
-
+                    //Comp_einwurf(skg); for testing issues wird hier direkt Minimax aufgerufen
+                    Minimax(6, -100, 100, true); //Maximizing Player ist der Bot minimizing der Bot gegen sich selbst?
+                                                 //     (depth, alpha, beta, maximizingplayer)
+                    Console.WriteLine(bestCol + " Column amk");
+                    steinrein(bestCol, -1);
                     if (win == 1)
                     {
                         Console.Clear();
@@ -960,6 +1067,58 @@ namespace VierGewinnt
             }
         }
 
+        private static bool CheckWin(int player)
+        {
+            // Check horizontal
+            for (int row = 0; row < 6; row++)
+            {
+                for (int col = 0; col < 4; col++)
+                {
+                    if (mx[row, col] == player && mx[row, col + 1] == player && mx[row, col + 2] == player && mx[row, col + 3] == player)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            // Check vertical
+            for (int row = 0; row < 3; row++)
+            {
+                for (int col = 0; col < 7; col++)
+                {
+                    if (mx[row, col] == player && mx[row + 1, col] == player && mx[row + 2, col] == player && mx[row + 3, col] == player)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            // Check diagonal (left to right)
+            for (int row = 0; row < 3; row++)
+            {
+                for (int col = 0; col < 4; col++)
+                {
+                    if (mx[row, col] == player && mx[row + 1, col + 1] == player && mx[row + 2, col + 2] == player && mx[row + 3, col + 3] == player)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            // Check diagonal (right to left)
+            for (int row = 0; row < 3; row++)
+            {
+                for (int col = 3; col < 7; col++)
+                {
+                    if (mx[row, col] == player && mx[row + 1, col - 1] == player && mx[row + 2, col - 2] == player && mx[row + 3, col - 3] == player)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
 
         public static void Comp_einwurf(int skg) //[1,2] row 1 und column 2 Oliver if-Simulator
         {
@@ -969,8 +1128,9 @@ namespace VierGewinnt
             skg = 0;
             if (skg == 0)//leicht 
             {
-                Minimax(); //Maximizing Player ist der Bot minimizing der Bot gegen sich selbst?
-
+                Minimax(6, -100, 100, true); //Maximizing Player ist der Bot minimizing der Bot gegen sich selbst?
+                //     (depth, alpha, beta, maximizingplayer)
+                steinrein(bestCol, -1);
             }
 
             if (skg == 1)//schwierigkeitsgrad mittel
@@ -1235,6 +1395,3 @@ namespace VierGewinnt
 
 
     }
-
-}
-
